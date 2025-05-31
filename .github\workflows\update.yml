@@ -1,0 +1,40 @@
+name: Update Sensor Data
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Create .env file
+        run: |
+          echo "SWITCHBOT_TOKEN=${{ secrets.SWITCHBOT_TOKEN }}" >> .env
+          echo "DEVICE_LIST=${{ secrets.DEVICE_LIST }}" >> .env
+
+      - name: Run data update
+        run: |
+          python get_data.py
+          python export_data.py
+
+      - name: Commit and Push
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add data.json
+          git commit -m "Update data [skip ci]" || echo "No changes"
+          git push
