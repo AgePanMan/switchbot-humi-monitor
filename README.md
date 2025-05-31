@@ -1,3 +1,5 @@
-# SwitchBot 温湿度モニター
+# SwitchBot統合モニター（温湿度＋電力）
 
-GitHub Actions + SQLite + Chart.js を使って SwitchBot データを Web 可視化するツールです。
+- 差分取得対応
+- 日付範囲指定グラフ表示
+- Chart.js + Flask + SQLite

@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>SwitchBot デバイスダッシュボード</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      background: #121212;
+      color: #333;
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 1em;
+    }
+    h1 {
+      text-align: center;
+      color: #3498db;
+      font-size: 2em;
+      margin-bottom: 1em;
+    }
+    .controls {
+      text-align: center;
+      margin-bottom: 2em;
+    }
+    .device-box {
+      background: #fff;
+      border-radius: 10px;
+      margin: 2em auto;
+      max-width: 900px;
+      padding: 1.5em;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    .device-box h2 {
+      text-align: center;
+      margin-top: 0;
+      color: #2c3e50;
+    }
+    .cards {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 1em;
+      margin-bottom: 1em;
+    }
+    .card {
+      background: #f5f5f5;
+      padding: 1em;
+      border-radius: 8px;
+      text-align: center;
+      min-width: 160px;
+      flex: 1 1 180px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .card h3 {
+      margin: 0;
+      font-size: 0.9em;
+      color: #555;
+    }
+    .card p {
+      margin-top: 0.5em;
+      font-size: 1.6em;
+      color: #000;
+    }
+    canvas {
+      background: #fff;
+      padding: 1em;
+      border-radius: 10px;
+      width: 100%;
+    }
+    button { margin: 0.5em; }
+  </style>
+</head>
+<body>
+  <h1>SwitchBot 複数デバイスダッシュボード</h1>
+
+  <div class="controls">
+    <label>開始日: <input type="date" id="fromDate"></label>
+    <label>終了日: <input type="date" id="toDate"></label>
+    <button onclick="reloadAll()">すべて表示</button>
+  </div>
+
+  <div id="dashboard"></div>
+
+  <script>
+    let charts = [];
+
+    async function fetchData(from, to) {
+      const res = await fetch(`/data?from=${from}&to=${to}`);
+      return await res.json();
+    }
+
+    function createCard(label, value) {
+      return `<div class="card"><h3>${label}</h3><p>${value ?? '--'}</p></div>`;
+    }
+
+    function renderDevice(deviceName, entry) {
+      const latest = entry.data[entry.data.length - 1];
+      const type = entry.type;
+      const div = document.createElement("div");
+      div.className = "device-box";
+
+      let cards = "";
+      let datasets = [];
+      const labels = entry.data.map(d => d.timestamp);
+
+      if (type.includes("Meter")) {
+        cards += createCard("温度 (℃)", latest.temperature?.toFixed(1));
+        cards += createCard("絶対湿度 (g/m³)", latest.absolute_humidity?.toFixed(1));
+
+        datasets = [
+          { label: "温度 (℃)", data: entry.data.map(d => d.temperature), borderColor: "#e74c3c", yAxisID: "y1", fill: false },
+          { label: "絶対湿度 (g/m³)", data: entry.data.map(d => d.absolute_humidity), borderColor: "#3498db", yAxisID: "y2", fill: false }
+        ];
+      } else if (type.includes("Plug")) {
+        cards += createCard("電力 (W)", latest.power?.toFixed(1));
+        cards += createCard("電圧 (V)", latest.voltage?.toFixed(1));
+        cards += createCard("本日使用量 (Wh)", latest.electricity?.toFixed(2));
+        datasets = [
+          { label: "電力 (W)", data: entry.data.map(d => d.power), borderColor: "#f1c40f", yAxisID: "y1", fill: false }
+        ];
+
+        // 電力量集計
+        const byDay = {};
+        const byMonth = {};
+        entry.data.forEach(d => {
+          if (!d.timestamp || d.electricity == null) return;
+          const date = new Date(d.timestamp);
+          const dayKey = date.toISOString().slice(0, 10);
+          const monthKey = date.toISOString().slice(0, 7);
+          const wh = Number(d.electricity);
+          if (!isNaN(wh)) {
+            byDay[dayKey] = (byDay[dayKey] || 0) + wh;
+            byMonth[monthKey] = (byMonth[monthKey] || 0) + wh;
+          }
+        });
+        const daySummary = Object.entries(byDay).map(([k, v]) => `<li>${k}: ${(v/1000).toFixed(3)} kWh</li>`).join("");
+        const monthSummary = Object.entries(byMonth).map(([k, v]) => `<li>${k}: ${(v/1000).toFixed(3)} kWh</li>`).join("");
+        var summaryHTML = `<div style="margin-top:1em;"><strong>日次電力量:</strong><ul>${daySummary}</ul><strong>月次電力量:</strong><ul>${monthSummary}</ul></div>`;
+
+      }
+
+      div.innerHTML = `
+        <h2>${deviceName}</h2>
+        <div class="cards">${cards}</div>
+        <canvas id="chart-${deviceName}"></canvas>
+      `;
+      div.innerHTML += summaryHTML || ""; document.getElementById("dashboard").appendChild(div);
+
+      const ctx = div.querySelector("canvas").getContext("2d");
+      charts.push(new Chart(ctx, {
+        type: "line",
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          plugins: { legend: { labels: { color: "#333" } } },
+          scales: {
+            x: { ticks: { color: "#444" } },
+            y1: {
+              type: "linear", position: "left",
+              ticks: { color: datasets[0].borderColor },
+              title: { display: true, text: datasets[0].label, color: datasets[0].borderColor }
+            },
+            y2: datasets.length > 1 ? {
+              type: "linear", position: "right",
+              ticks: { color: datasets[1].borderColor },
+              title: { display: true, text: datasets[1].label, color: datasets[1].borderColor },
+              grid: { drawOnChartArea: false }
+            } : undefined
+          }
+        }
+      }));
+    }
+
+    async function reloadAll() {
+      const from = document.getElementById("fromDate").value;
+      const to = document.getElementById("toDate").value;
+      document.getElementById("dashboard").innerHTML = "";
+      charts.forEach(c => c.destroy());
+      charts = [];
+
+      const allData = await fetchData(from, to);
+      Object.keys(allData).forEach(name => {
+        if (allData[name].data.length > 0) {
+          renderDevice(name, allData[name]);
+        }
+      });
+    }
+
+    const today = new Date().toISOString().split("T")[0];
+    document.getElementById("fromDate").value = today;
+    document.getElementById("toDate").value = "2025-06-01";
+document.getElementById("fromDate").value = "2025-05-26";
+reloadAll();
+  </script>
+</body>
+</html>
