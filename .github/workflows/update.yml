@@ -1,40 +1,35 @@
-name: Update Sensor Data
+name: Fetch SwitchBot Data
 
 on:
   schedule:
-    - cron: '0 * * * *'
+    - cron: '*/10 * * * *'  # 10分ごと
   workflow_dispatch:
 
 jobs:
-  update:
+  fetch:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
+      - uses: actions/checkout@v3
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.x'
+          python-version: 3.11
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Create .env file
         run: |
-          echo "SWITCHBOT_TOKEN=${{ secrets.SWITCHBOT_TOKEN }}" >> .env
-          echo "DEVICE_LIST=${{ secrets.DEVICE_LIST }}" >> .env
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-      - name: Run data update
+      - name: Run data fetcher
+        env:
+          SWITCHBOT_TOKEN: ${{ secrets.SWITCHBOT_TOKEN }}
         run: |
-          python get_data.py
-          python export_data.py
+          python app.py  # or dedicated fetch script
 
-      - name: Commit and Push
+      - name: Commit DB/JSON changes
         run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git add data.json
-          git commit -m "Update data [skip ci]" || echo "No changes"
+          git config --global user.email "you@example.com"
+          git config --global user.name "GitHub Actions"
+          git add data.json db.sqlite3
+          git commit -m "Update sensor data" || echo "No changes"
           git push
