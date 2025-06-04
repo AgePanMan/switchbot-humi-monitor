@@ -1,53 +1,11 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>温湿度グラフ</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta charset="UTF-8" />
+  <title>SwitchBot Dashboard</title>
 </head>
 <body>
-  <h2>SwitchBot温湿度データ</h2>
-  <select id="deviceSelector"></select>
-  <canvas id="chart" width="600" height="400"></canvas>
-
-  <script>
-    let allData;
-
-    function renderChart(deviceName) {
-      const data = allData[deviceName];
-      const labels = data.map(d => d.timestamp);
-      const temps = data.map(d => d.temperature);
-      const humids = data.map(d => d.humidity);
-      const ctx = document.getElementById('chart');
-      new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: [
-            { label: '温度 (℃)', data: temps, borderColor: 'red', fill: false },
-            { label: '湿度 (%)', data: humids, borderColor: 'blue', fill: false }
-          ]
-        },
-        options: { responsive: true }
-      });
-    }
-
-    fetch('data.json')
-      .then(res => res.json())
-      .then(json => {
-        allData = json;
-        const selector = document.getElementById("deviceSelector");
-        Object.keys(json).forEach(name => {
-          const option = document.createElement("option");
-          option.value = name;
-          option.text = name;
-          selector.appendChild(option);
-        });
-        selector.addEventListener("change", e => {
-          renderChart(e.target.value);
-        });
-        renderChart(selector.options[0].value);
-      });
-  </script>
+  <h1>SwitchBot ダッシュボード</h1>
+  <p>GitHub Pagesが正しく表示されています。</p>
 </body>
 </html>
