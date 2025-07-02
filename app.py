@@ -31,19 +31,6 @@ def init_db():
             voltage REAL,
             electricity REAL,
             current REAL
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            device_id TEXT,
-            device_name TEXT,
-            device_type TEXT,
-            timestamp TEXT,
-            temperature REAL,
-            humidity REAL,
-            absolute_humidity REAL,
-            dew_point REAL,
-            vpd REAL,
-            power REAL,
-            voltage REAL,
-            electricity REAL
         );
         """)
 
@@ -55,7 +42,6 @@ def index():
 def get_data():
     from_date = request.args.get("from")
     to_date = request.args.get("to")
-
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     cur.execute("SELECT DISTINCT device_name, device_type FROM sensor_data")
@@ -81,7 +67,8 @@ def get_data():
                     "vpd": r[5],
                     "power": r[6],
                     "voltage": r[7],
-                    "electricity": r[8], "current": r[9]
+                    "electricity": r[8],
+                    "current": r[9]
                 } for r in rows
             ]
         }
@@ -127,11 +114,9 @@ def add():
                 """, (dev_id, dev_name, dev_type, now, temp, hum, ah, dp, vpd))
 
         elif dev_type.startswith("Plug"):
-            power = status.get("weight")  # 消費電力 (W)
+            power = status.get("weight")
             voltage = status.get("voltage")
             current = status.get("current")
-            electricity = status.get("electricityOfDay")
-            voltage = status.get("voltage")
             electricity = status.get("electricityOfDay")
             cur.execute("""
                 INSERT INTO sensor_data (
