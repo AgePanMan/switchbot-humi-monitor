@@ -9,7 +9,6 @@ from sensor_calculations import calc_absolute_humidity, calc_dew_point, calc_vpd
 
 app = Flask(__name__)
 load_dotenv()
-
 DB_PATH = "db.sqlite3"
 
 def init_db():
@@ -49,7 +48,8 @@ def get_data():
     result = {}
     for name, dtype in devices:
         cur.execute("""
-            SELECT timestamp, temperature, humidity, absolute_humidity, dew_point, vpd, power, voltage, electricity, current
+            SELECT timestamp, temperature, humidity, absolute_humidity, dew_point, vpd,
+                   power, voltage, electricity, current
             FROM sensor_data
             WHERE device_name=? AND timestamp BETWEEN ? AND ?
             ORDER BY timestamp
