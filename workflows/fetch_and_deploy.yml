@@ -1,0 +1,45 @@
+name: Fetch and Deploy to gh-pages
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - uses: actions/setup-python@v4
+      with:
+        python-version: 3.11
+
+    - run: pip install -r requirements.txt
+
+    - name: データ取得
+      env:
+        SWITCHBOT_TOKEN: ${{ secrets.SWITCHBOT_TOKEN }}
+      run: python app.py
+
+    - name: JSON出力
+      run: python export_json.py
+
+    - name: mainにdb.sqlite3をcommit
+      run: |
+        git config --global user.name 'github-actions'
+        git config --global user.email 'actions@github.com'
+        git add db.sqlite3
+        git commit -m "Update DB" || echo "No DB changes"
+        git push
+
+    - name: gh-pagesにdata.jsonを反映
+      run: |
+        git switch gh-pages
+        cp data.json ./data.json
+        git add data.json
+        git commit -m "Update data.json from main" || echo "No JSON changes"
+        git push origin gh-pages
